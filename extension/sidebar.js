@@ -1,4 +1,4 @@
-const BACKEND = "http://localhost:8000";
+const BACKEND = "https://13.49.67.238.sslip.io";
 
 let currentVideoId = null;
 
@@ -24,6 +24,25 @@ function addBubble(text, role) {
   return div;
 }
 
+function getErrorMessage(payload, fallback) {
+  if (!payload) return fallback;
+  if (typeof payload === "string") return payload;
+  if (typeof payload.message === "string" && payload.message.trim()) return payload.message;
+  if (typeof payload.detail === "string" && payload.detail.trim()) return payload.detail;
+  if (Array.isArray(payload.detail) && payload.detail.length > 0) {
+    const first = payload.detail[0];
+    if (typeof first === "string") return first;
+    if (first && typeof first.msg === "string") return first.msg;
+  }
+  return fallback;
+}
+
+function apiUrl(path) {
+  const base = BACKEND.replace(/\/+$/, "");
+  const cleanPath = String(path || "").replace(/^\/+/, "");
+  return `${base}/${cleanPath}`;
+}
+
 // ── Load video ────────────────────────────────────────────────────────────────
 
 async function loadVideo(videoId) {
@@ -34,19 +53,20 @@ async function loadVideo(videoId) {
   sendBtn.disabled = true;
 
   try {
-    const res  = await fetch(`${BACKEND}/load`, {
+    const res  = await fetch(apiUrl("/load"), {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ video_id: videoId }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
 
-    if (data.status === "ok") {
+    if (res.ok && data?.status === "ok") {
       setStatus(`✓ Ready — ${videoId}`, "loaded");
       addBubble("Video ready! Ask me anything about this video.", "bot");
       sendBtn.disabled = false;
     } else {
-      setStatus(`Error: ${data.message}`, "error");
+      const message = getErrorMessage(data, `Load failed (${res.status}).`);
+      setStatus(`Error: ${message}`, "error");
       currentVideoId = null;
     }
   } catch (err) {
@@ -67,19 +87,20 @@ async function sendMessage() {
   const thinking = addBubble("Thinking…", "bot thinking");
 
   try {
-    const res  = await fetch(`${BACKEND}/chat`, {
+    const res  = await fetch(apiUrl("/chat"), {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ video_id: currentVideoId, question }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
 
     thinking.remove();
 
-    if (data.status === "ok") {
+    if (res.ok && data?.status === "ok") {
       addBubble(data.answer, "bot");
     } else {
-      addBubble(`Error: ${data.message}`, "bot");
+      const message = getErrorMessage(data, `Request failed (${res.status}).`);
+      addBubble(`Error: ${message}`, "bot");
     }
   } catch (err) {
     thinking.remove();
@@ -113,7 +134,7 @@ clearBtn.addEventListener("click", () => {
   chatBox.innerHTML = "";
   
   if (currentVideoId) {
-    fetch(`${BACKEND}/history/${currentVideoId}`, { method: "DELETE" });
+    fetch(apiUrl(`/history/${currentVideoId}`), { method: "DELETE" });
     // Don't null out currentVideoId — keep the video loaded
   }
 
