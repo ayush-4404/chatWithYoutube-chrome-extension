@@ -62,23 +62,36 @@ def fetch_transcript_ytdlp(video_id: str) -> str:
     )
 
     ydl_opts = {
-        "ignoreconfig": True,
-        "skip_download": True,
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
+    "ignoreconfig": True,
+    "quiet": True,
+    "no_warnings": True,
+    "noplaylist": True,
+    "skip_download": True,
 
-        "format": "bestaudio/best",
-        "extract_flat": True,
-        
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "web", "tv"],
-            }
-        },
-    }
-    if cookiefile and os.path.exists(cookiefile):
-        ydl_opts["cookiefile"] = cookiefile
+    # 🔥 CRITICAL
+    "cookiefile": "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt",
+
+    # 🔥 PREVENT FORMAT ERROR
+    "extract_flat": True,
+
+    # 🔥 ACT LIKE BROWSER
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0"
+    },
+
+    # 🔥 BEST CLIENT
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android"],
+        }
+    },
+}
+    # if cookiefile and os.path.exists(cookiefile):
+    #     ydl_opts["cookiefile"] = cookiefile
+    ydl_opts["cookiefile"] = "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt"
+
+    print("Using cookies file:", ydl_opts.get("cookiefile"))
+    print("File exists:", os.path.exists(ydl_opts.get("cookiefile")))
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(
