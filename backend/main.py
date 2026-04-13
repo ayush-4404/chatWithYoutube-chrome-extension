@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from urllib.parse import parse_qs, urlparse
 import json, os, tempfile
-
+import yt_dlp
+import tempfile
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
@@ -53,12 +54,54 @@ class ChatRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def fetch_transcript(video_id: str) -> str:
-    transcript_list = YouTubeTranscriptApi().fetch(
-        video_id, languages=PREFERRED_LANGUAGES
-    )
-    return " ".join(chunk.text for chunk in transcript_list)
+def fetch_transcript_ytdlp(video_id: str) -> str:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        ydl_opts = {
+            "skip_download": True,
+            "writesubtitles": True,
+            "writeautomaticsub": True,
+            "subtitleslangs": PREFERRED_LANGUAGES,
+            "subtitlesformat": "json3",
+            "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
+            "quiet": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
+        json3_files = [
+            os.path.join(tmp_dir, f)
+            for f in os.listdir(tmp_dir)
+            if f.startswith(video_id) and f.endswith(".json3")
+        ]
+        if not json3_files:
+            raise ValueError("No subtitles found via yt-dlp.")
+
+        lines = []
+        for file_path in sorted(json3_files):
+            with open(file_path, "r", encoding="utf-8") as fp:
+                data = json.load(fp)
+            for event in data.get("events", []):
+                line = "".join(s.get("utf8", "") for s in event.get("segs", [])).strip()
+                if line:
+                    lines.append(line)
+
+        text = " ".join(lines).strip()
+        if not text:
+            raise ValueError("yt-dlp subtitles were empty.")
+        return text
+
+
+def fetch_transcript(video_id: str) -> str:
+    try:
+        transcript_list = YouTubeTranscriptApi().fetch(
+            video_id, languages=PREFERRED_LANGUAGES
+        )
+        return " ".join(chunk.text for chunk in transcript_list)
+    except Exception as e:
+        if "blocking" in str(e) or "IP" in str(e) or "cloud" in str(e).lower():
+            # fallback to yt-dlp
+            return fetch_transcript_ytdlp(video_id)
+        raise
 
 def build_retriever(transcript: str):
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
