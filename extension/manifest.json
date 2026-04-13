@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Chatbot",
+  "version": "1.0",
+  "description": "Chat with any YouTube video transcript",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "http://localhost:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/watch*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar.html", "sidebar.js", "sidebar.css"],
+      "matches": ["https://www.youtube.com/*"]
+    }
+  ]
+}

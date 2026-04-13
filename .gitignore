@@ -1,0 +1,23 @@
+# Python cache and artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment and secrets
+.env
+*.env
+backend/.env
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
