@@ -125,3 +125,10 @@ def chat(req: ChatRequest):
 def clear_session(video_id: str):
     sessions.pop(video_id, None)
     return {"status": "ok"}
+
+
+@app.delete("/history/{video_id}")
+def clear_history(video_id: str):
+    if video_id in sessions:
+        sessions[video_id]["history"] = []
+    return {"status": "ok"}

@@ -1,78 +1,35 @@
-# Chat With YouTube Chrome Extension
+# ChatWithYoutube
 
-This project lets you chat with a YouTube video's transcript using a FastAPI backend and a Chrome extension sidebar UI.
+## 🚀 How to install the extension
 
-## Project Structure
+### 1. Download the extension
 
-```text
-chatWithYoutube-chrome-extension/
-├── backend/
-│   ├── main.py
-│   ├── .env
-│   └── requirements.txt
-├── extension/
-│   ├── manifest.json
-│   ├── content.js
-│   ├── sidebar.html
-│   ├── sidebar.js
-│   └── sidebar.css
-└── README.md
-```
+Download the ZIP file from:
+GitHub / your website (e.g., `my-extension.zip`)
 
-## Prerequisites
+Extract it anywhere on your computer.
 
-- Python 3.10+
-- Google Gemini API key
-- Google Chrome
+### 2. Open Chrome Extensions page
 
-## Backend Setup
+Open Chrome and go to:
 
-1. Move to the backend folder:
+`chrome://extensions/`
 
-```bash
-cd backend
-```
+### 3. Enable Developer Mode
 
-2. Create and activate virtual environment (if not already created):
+Turn ON Developer Mode (top right corner).
 
-```bash
-cd ..
-python3 -m venv .venv
-source .venv/bin/activate
-cd backend
-```
+### 4. Load the extension
 
-3. Install dependencies:
+Click "Load unpacked"
 
-```bash
-python -m pip install -r requirements.txt
-```
+Select the extracted folder.
 
-4. Add environment variables in backend/.env:
+### 5. Done ✅
 
-```env
-GOOGLE_API_KEY=your_api_key_here
-```
+Your extension will appear in the toolbar.
 
-5. Start FastAPI server:
+Pin it for easy access.
 
-```bash
-python -m uvicorn main:app --reload --port 8000
-```
 
-Server will run at: http://127.0.0.1:8000
 
-## Chrome Extension Setup
-
-1. Open Chrome and go to:
-
-chrome://extensions/
-
-2. Enable Developer mode (top-right).
-3. Click Load unpacked.
-4. Select the extension folder from this project.
-
-## Notes
-
-- Use python -m uvicorn instead of plain uvicorn to ensure the correct virtual environment is used.
-- Keep backend/.env private and never commit secrets.

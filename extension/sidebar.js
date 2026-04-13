@@ -30,7 +30,7 @@ async function loadVideo(videoId) {
   if (videoId === currentVideoId) return; // already loaded
   currentVideoId = videoId;
   chatBox.innerHTML = "";
-  setStatus(`Loading transcript for ${videoId} …`, "loading");
+  setStatus(`Loading video context for ${videoId} …`, "loading");
   sendBtn.disabled = true;
 
   try {
@@ -43,7 +43,7 @@ async function loadVideo(videoId) {
 
     if (data.status === "ok") {
       setStatus(`✓ Ready — ${videoId}`, "loaded");
-      addBubble("Transcript loaded! Ask me anything about this video.", "bot");
+      addBubble("Video ready! Ask me anything about this video.", "bot");
       sendBtn.disabled = false;
     } else {
       setStatus(`Error: ${data.message}`, "error");
@@ -101,13 +101,28 @@ userInput.addEventListener("keydown", (e) => {
   }
 });
 
+// clearBtn.addEventListener("click", () => {
+//   chatBox.innerHTML = "";
+//   if (currentVideoId) {
+//     fetch(`${BACKEND}/session/${currentVideoId}`, { method: "DELETE" });
+//     currentVideoId = null;
+//     setStatus("Session cleared — reload the video to start fresh.");
+//   }
+// });
 clearBtn.addEventListener("click", () => {
   chatBox.innerHTML = "";
+  
   if (currentVideoId) {
-    fetch(`${BACKEND}/session/${currentVideoId}`, { method: "DELETE" });
-    currentVideoId = null;
-    setStatus("Session cleared — reload the video to start fresh.");
+    fetch(`${BACKEND}/history/${currentVideoId}`, { method: "DELETE" });
+    // Don't null out currentVideoId — keep the video loaded
   }
+
+  // Re-add the welcome message
+  addBubble("Chat cleared! You can keep asking questions about this video.", "bot");
+  
+  // Make sure input stays enabled
+  sendBtn.disabled = false;
+  userInput.focus();
 });
 
 // ── Listen for video id from content.js ──────────────────────────────────────

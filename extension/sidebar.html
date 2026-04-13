@@ -2,14 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>YouTube Chatbot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatWithYoutube</title>
   <link rel="stylesheet" href="sidebar.css" />
 </head>
 <body>
-  <div id="app">
+  <div id="app" class="shell">
     <div id="header">
-      <span>🎬 YouTube Chatbot</span>
-      <button id="clear-btn" title="Clear chat">🗑</button>
+      <div class="brand-wrap">
+        <div class="brand-dot"></div>
+        <div class="brand-text">
+          <span class="brand-title">ChatWithYoutube</span>
+          <span class="brand-subtitle">Video Q&A Assistant</span>
+        </div>
+      </div>
+      <button id="clear-btn" title="Clear chat" aria-label="Clear chat">Clear</button>
     </div>
 
     <div id="status-bar">No video loaded</div>
@@ -18,7 +25,7 @@
 
     <div id="input-area">
       <input id="user-input" type="text" placeholder="Ask about this video..." />
-      <button id="send-btn">Send</button>
+      <button id="send-btn">Ask</button>
     </div>
   </div>
   <script src="sidebar.js"></script>

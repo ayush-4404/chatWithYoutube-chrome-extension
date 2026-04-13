@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Chatbot",
+  "name": "ChatWithYoutube",
   "version": "1.0",
-  "description": "Chat with any YouTube video transcript",
+  "description": "Chat with any YouTube video content",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "https://www.youtube.com/*",
