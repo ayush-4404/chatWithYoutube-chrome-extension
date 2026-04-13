@@ -1,6 +1,6 @@
 # ChatWithYoutube
 
-## 🚀 How to install the extension
+##  How to install the extension
 
 ### 1. Download the extension
 
@@ -25,7 +25,7 @@ Click "Load unpacked"
 
 Select the extracted folder.
 
-### 5. Done ✅
+### 5. Done 
 
 Your extension will appear in the toolbar.
 
