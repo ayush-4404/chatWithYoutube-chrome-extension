@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
 import json, os, tempfile
 import yt_dlp
 import tempfile
@@ -55,45 +56,95 @@ class ChatRequest(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def fetch_transcript_ytdlp(video_id: str) -> str:
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        ydl_opts = {
-    "skip_download": True,
-    "writesubtitles": True,
-    "writeautomaticsub": True,
-    "subtitleslangs": PREFERRED_LANGUAGES,
-    "subtitlesformat": "json3",
-    "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
-    "quiet": True,
+    cookiefile = os.getenv(
+        "YTDLP_COOKIEFILE",
+        "/home/ubuntu/chatWithYoutube-chrome-extension/backend/www.youtube.com_cookies.txt",
+    )
 
-    "format": "bestaudio/best",   # prevents format error
-    "noplaylist": True,
+    ydl_opts = {
+        "ignoreconfig": True,
+        "skip_download": True,
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web", "tv"],
+            }
+        },
+    }
+    if cookiefile and os.path.exists(cookiefile):
+        ydl_opts["cookiefile"] = cookiefile
 
-    "cookiefile": "/home/ubuntu/chatWithYoutube-chrome-extension/backend/www.youtube.com_cookies.txt",
-}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(
+            f"https://www.youtube.com/watch?v={video_id}",
+            download=False,
+        )
 
-        json3_files = [
-            os.path.join(tmp_dir, f)
-            for f in os.listdir(tmp_dir)
-            if f.startswith(video_id) and f.endswith(".json3")
-        ]
-        if not json3_files:
-            raise ValueError("No subtitles found via yt-dlp.")
+    if not info:
+        raise ValueError("Could not fetch video metadata via yt-dlp.")
 
-        lines = []
-        for file_path in sorted(json3_files):
-            with open(file_path, "r", encoding="utf-8") as fp:
-                data = json.load(fp)
-            for event in data.get("events", []):
-                line = "".join(s.get("utf8", "") for s in event.get("segs", [])).strip()
-                if line:
-                    lines.append(line)
+    subtitles = info.get("subtitles") or {}
+    automatic = info.get("automatic_captions") or {}
 
-        text = " ".join(lines).strip()
-        if not text:
-            raise ValueError("yt-dlp subtitles were empty.")
-        return text
+    def pick_track(tracks: dict):
+        for lang in PREFERRED_LANGUAGES:
+            entries = tracks.get(lang) or []
+            if not entries:
+                continue
+            for preferred_ext in ("json3", "srv3", "vtt"):
+                for entry in entries:
+                    if entry.get("ext") == preferred_ext and entry.get("url"):
+                        return entry
+            for entry in entries:
+                if entry.get("url"):
+                    return entry
+
+        for key, entries in tracks.items():
+            if not isinstance(entries, list):
+                continue
+            if not any(key.startswith(lang) for lang in PREFERRED_LANGUAGES):
+                continue
+            for entry in entries:
+                if entry.get("url"):
+                    return entry
+        return None
+
+    track = pick_track(subtitles) or pick_track(automatic)
+    if not track:
+        raise ValueError("No subtitles found via yt-dlp.")
+
+    req = Request(track["url"], headers={"User-Agent": "Mozilla/5.0"})
+    with urlopen(req, timeout=30) as resp:
+        payload = resp.read().decode("utf-8", errors="ignore")
+
+    ext = (track.get("ext") or "").lower()
+    lines = []
+
+    if ext in {"json3", "srv3"}:
+        data = json.loads(payload)
+        for event in data.get("events", []):
+            line = "".join(seg.get("utf8", "") for seg in event.get("segs", [])).strip()
+            if line:
+                lines.append(line)
+    else:
+        for raw in payload.splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith(("WEBVTT", "NOTE", "STYLE", "REGION")):
+                continue
+            if "-->" in line:
+                continue
+            if line.isdigit():
+                continue
+            lines.append(line)
+
+    text = " ".join(lines).strip()
+    if not text:
+        raise ValueError("yt-dlp subtitles were empty.")
+    return text
 
 
 def fetch_transcript(video_id: str) -> str:
