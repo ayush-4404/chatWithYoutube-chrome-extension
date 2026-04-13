@@ -58,7 +58,7 @@ class ChatRequest(BaseModel):
 def fetch_transcript_ytdlp(video_id: str) -> str:
     cookiefile = os.getenv(
         "YTDLP_COOKIEFILE",
-        "/home/ubuntu/chatWithYoutube-chrome-extension/backend/www.youtube.com_cookies.txt",
+        "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt",
     )
 
     ydl_opts = {
