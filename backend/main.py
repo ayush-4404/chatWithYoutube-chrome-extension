@@ -57,18 +57,19 @@ class ChatRequest(BaseModel):
 def fetch_transcript_ytdlp(video_id: str) -> str:
     with tempfile.TemporaryDirectory() as tmp_dir:
         ydl_opts = {
-            "ignoreconfig": True,
-            "skip_download": True,
-            "extract_flat": "discard_in_playlist",
-            "writesubtitles": True,
-            "writeautomaticsub": True,
-            "subtitleslangs": PREFERRED_LANGUAGES,
-            "subtitlesformat": "json3",
-            "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
-            "quiet": True,
-            "no_warnings": True,
-            "cookiefile": "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt"
-        }
+    "skip_download": True,
+    "writesubtitles": True,
+    "writeautomaticsub": True,
+    "subtitleslangs": PREFERRED_LANGUAGES,
+    "subtitlesformat": "json3",
+    "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
+    "quiet": True,
+
+    "format": "bestaudio/best",   # prevents format error
+    "noplaylist": True,
+
+    "cookiefile": "/home/ubuntu/chatWithYoutube-chrome-extension/backend/www.youtube.com_cookies.txt",
+}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
