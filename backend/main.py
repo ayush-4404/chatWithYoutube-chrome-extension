@@ -67,6 +67,10 @@ def fetch_transcript_ytdlp(video_id: str) -> str:
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+
+        "format": "bestaudio/best",
+        "extract_flat": True,
+        
         "extractor_args": {
             "youtube": {
                 "player_client": ["android", "web", "tv"],
