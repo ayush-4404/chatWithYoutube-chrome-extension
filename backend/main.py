@@ -64,6 +64,7 @@ def fetch_transcript_ytdlp(video_id: str) -> str:
             "subtitlesformat": "json3",
             "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
             "quiet": True,
+            "cookiefile": "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt"
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
