@@ -7,6 +7,7 @@ const chatBox    = document.getElementById("chat-box");
 const userInput  = document.getElementById("user-input");
 const sendBtn    = document.getElementById("send-btn");
 const clearBtn   = document.getElementById("clear-btn");
+const closeBtn   = document.getElementById("close-btn");
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,6 +145,10 @@ clearBtn.addEventListener("click", () => {
   // Make sure input stays enabled
   sendBtn.disabled = false;
   userInput.focus();
+});
+
+closeBtn.addEventListener("click", () => {
+  window.parent.postMessage({ type: "TOGGLE_SIDEBAR", action: "close" }, "*");
 });
 
 // ── Listen for video id from content.js ──────────────────────────────────────
