@@ -1,11 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-import json, os, tempfile
-import yt_dlp
-import tempfile
+import json
+import os
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
@@ -55,125 +54,75 @@ class ChatRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def fetch_transcript_ytdlp(video_id: str) -> str:
-    cookiefile = os.getenv(
-        "YTDLP_COOKIEFILE",
-        "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt",
-    )
+def fetch_transcript_supadata(video_id: str) -> str:
+    api_key = os.getenv("SUPADATA_API_KEY")
+    if not api_key:
+        raise ValueError("SUPADATA_API_KEY is not set.")
 
-    ydl_opts = {
-    "ignoreconfig": True,
-    "quiet": True,
-    "no_warnings": True,
-    "noplaylist": True,
-    "skip_download": True,
-
-    # 🔥 CRITICAL
-    "cookiefile": "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt",
-
-    # 🔥 PREVENT FORMAT ERROR
-    "extract_flat": True,
-
-    # 🔥 ACT LIKE BROWSER
-    "http_headers": {
-        "User-Agent": "Mozilla/5.0"
-    },
-
-    # 🔥 BEST CLIENT
-    "extractor_args": {
-        "youtube": {
-            "player_client": ["android"],
+    base_url = "https://api.supadata.ai/v1/transcript"
+    query = urlencode(
+        {
+            "url": f"https://www.youtube.com/watch?v={video_id}",
+            "lang": "en",
+            "text": "true",
+            "mode": "auto",
         }
-    },
-}
-    # if cookiefile and os.path.exists(cookiefile):
-    #     ydl_opts["cookiefile"] = cookiefile
-    ydl_opts["cookiefile"] = "/home/ubuntu/chatWithYoutube-chrome-extension/backend/cookies.txt"
-
-    print("Using cookies file:", ydl_opts.get("cookiefile"))
-    print("File exists:", os.path.exists(ydl_opts.get("cookiefile")))
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(
-            f"https://www.youtube.com/watch?v={video_id}",
-            download=False,
-        )
-
-    if not info:
-        raise ValueError("Could not fetch video metadata via yt-dlp.")
-
-    subtitles = info.get("subtitles") or {}
-    automatic = info.get("automatic_captions") or {}
-
-    def pick_track(tracks: dict):
-        for lang in PREFERRED_LANGUAGES:
-            entries = tracks.get(lang) or []
-            if not entries:
-                continue
-            for preferred_ext in ("json3", "srv3", "vtt"):
-                for entry in entries:
-                    if entry.get("ext") == preferred_ext and entry.get("url"):
-                        return entry
-            for entry in entries:
-                if entry.get("url"):
-                    return entry
-
-        for key, entries in tracks.items():
-            if not isinstance(entries, list):
-                continue
-            if not any(key.startswith(lang) for lang in PREFERRED_LANGUAGES):
-                continue
-            for entry in entries:
-                if entry.get("url"):
-                    return entry
-        return None
-
-    track = pick_track(subtitles) or pick_track(automatic)
-    if not track:
-        raise ValueError("No subtitles found via yt-dlp.")
-
-    req = Request(track["url"], headers={"User-Agent": "Mozilla/5.0"})
+    )
+    req = Request(
+        f"{base_url}?{query}",
+        headers={"x-api-key": api_key, "User-Agent": "Mozilla/5.0"},
+    )
     with urlopen(req, timeout=30) as resp:
         payload = resp.read().decode("utf-8", errors="ignore")
 
-    ext = (track.get("ext") or "").lower()
-    lines = []
+    data = json.loads(payload)
+    # Supadata returns either transcript content or a job ID.
+    if isinstance(data, dict):
+        content = data.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+        if isinstance(content, list):
+            lines = [seg.get("text", "").strip() for seg in content if isinstance(seg, dict)]
+            text = " ".join([line for line in lines if line])
+            if text:
+                return text
 
-    if ext in {"json3", "srv3"}:
-        data = json.loads(payload)
-        for event in data.get("events", []):
-            line = "".join(seg.get("utf8", "") for seg in event.get("segs", [])).strip()
-            if line:
-                lines.append(line)
-    else:
-        for raw in payload.splitlines():
-            line = raw.strip()
-            if not line:
-                continue
-            if line.startswith(("WEBVTT", "NOTE", "STYLE", "REGION")):
-                continue
-            if "-->" in line:
-                continue
-            if line.isdigit():
-                continue
-            lines.append(line)
+        job_id = data.get("jobId")
+        if isinstance(job_id, str) and job_id.strip():
+            # Poll job status a few times for async transcripts.
+            for _ in range(6):
+                job_req = Request(
+                    f"{base_url}/{job_id}",
+                    headers={"x-api-key": api_key, "User-Agent": "Mozilla/5.0"},
+                )
+                with urlopen(job_req, timeout=30) as job_resp:
+                    job_payload = job_resp.read().decode("utf-8", errors="ignore")
+                job_data = json.loads(job_payload)
+                content = job_data.get("content")
+                if isinstance(content, str) and content.strip():
+                    return content.strip()
+                if isinstance(content, list):
+                    lines = [seg.get("text", "").strip() for seg in content if isinstance(seg, dict)]
+                    text = " ".join([line for line in lines if line])
+                    if text:
+                        return text
 
-    text = " ".join(lines).strip()
-    if not text:
-        raise ValueError("yt-dlp subtitles were empty.")
-    return text
+            raise ValueError("Supadata transcript job did not complete in time.")
+
+    raise ValueError("Supadata transcript response was empty or unrecognized.")
 
 
 def fetch_transcript(video_id: str) -> str:
+    api_key = os.getenv("SUPADATA_API_KEY")
+    if api_key:
+        return fetch_transcript_supadata(video_id)
+
     try:
         transcript_list = YouTubeTranscriptApi().fetch(
             video_id, languages=PREFERRED_LANGUAGES
         )
         return " ".join(chunk.text for chunk in transcript_list)
-    except Exception as e:
-        if "blocking" in str(e) or "IP" in str(e) or "cloud" in str(e).lower():
-            # fallback to yt-dlp
-            return fetch_transcript_ytdlp(video_id)
+    except Exception:
         raise
 
 def build_retriever(transcript: str):
