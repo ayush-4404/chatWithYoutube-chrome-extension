@@ -1,5 +1,5 @@
 const BACKEND = "https://13.49.67.238.sslip.io";
-
+// const BACKEND = "http://127.0.0.1:8000";
 let currentVideoId = null;
 
 const statusBar  = document.getElementById("status-bar");
